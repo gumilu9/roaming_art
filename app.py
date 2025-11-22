@@ -11,8 +11,6 @@ except FileNotFoundError:
     GOOGLE_API_KEY = "请在Streamlit Secrets中配置你的KEY" 
 
 # 🛠️ 模型版本设置
-# 目前 API 稳定支持的是 gemini-1.5-pro-latest
-# 如果你确实拥有 gemini-3-pro-preview 的内部权限，请手动修改下方字符串，否则会报错 404
 MODEL_VERSION = "gemini-1.5-pro-latest"
 
 # --- 2. 页面初始化 ---
@@ -29,7 +27,7 @@ if "auth_diagnostic" not in st.session_state:
 if "auth_reader" not in st.session_state:
     st.session_state.auth_reader = False
 
-# --- 4. CSS 深度视觉定制 (终极白字版) ---
+# --- 4. CSS 深度视觉定制 (终极白字修正版) ---
 st.markdown("""
     <style>
         /* =========================================
@@ -55,23 +53,26 @@ st.markdown("""
             background-color: #000000 !important;
         }
         
-        /* ☢️ 核弹级 CSS：强制右侧所有元素变白 ☢️ */
-        
-        /* 2.1 所有的标题 (H1-H6) */
-        .main h1, .main h2, .main h3, .main h4, .main h5, .main h6, 
-        .main .stHeadingContainer {
+        /* ☢️ 核心修复 1：强制标题纯白 ☢️ */
+        /* 包含 span 以防止 Streamlit Cloud 的主题覆盖 */
+        h1, h1 span, .stHeadingContainer h1 {
             color: #ffffff !important;
             font-family: "HarmonyOS Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif !important;
         }
         
-        /* 2.2 普通文本、Markdown 正文 (关键：修复分析报告灰色问题) */
+        /* 副标题、小标题纯白 */
+        h2, h2 span, h3, h3 span, h4, h4 span {
+            color: #ffffff !important;
+        }
+        
+        /* ☢️ 核心修复 2：普通文本、生成的报告正文强制纯白 ☢️ */
         .main p, .main span, .main div, .main li, .main strong, .main em {
             color: #ffffff !important;
             font-family: "HarmonyOS Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif !important;
         }
         
-        /* 2.3 专门针对 Streamlit Markdown 容器的修复 */
-        .stMarkdown, [data-testid="stMarkdownContainer"] p {
+        /* 专门针对 AI 生成内容的 Markdown 容器 */
+        .stMarkdown, [data-testid="stMarkdownContainer"] p, [data-testid="stMarkdownContainer"] li {
             color: #ffffff !important;
         }
 
@@ -95,26 +96,30 @@ st.markdown("""
             border-bottom: 2px solid #ffffff !important;
         }
 
-        /* 2.5 按钮样式 (黑底白框) */
+        /* ☢️ 核心修复 3：按钮样式 (白底黑字) ☢️ */
+        /* 无论是“解锁终端”还是“启动”，统一设为白底黑字 */
         .main div.stButton > button {
             width: 100%;
             border-radius: 0px !important;
             border: 1px solid #ffffff !important;
-            background-color: #000000 !important;
-            color: #ffffff !important; /* 按钮文字白 */
+            
+            background-color: #ffffff !important; /* 白底 */
+            color: #000000 !important; /* 黑字 */
+            
             font-weight: 600;
             padding: 12px;
             transition: all 0.3s ease;
         }
+        /* 按钮内部的文字标签强制变黑 */
         .main div.stButton > button p {
-            color: #ffffff !important; /* 确保按钮内部 p 标签也是白 */
+            color: #000000 !important; 
         }
+        
+        /* 悬停效果：略微变灰 */
         .main div.stButton > button:hover {
-            background-color: #ffffff !important;
+            background-color: #e0e0e0 !important;
             border-color: #ffffff !important;
-        }
-        .main div.stButton > button:hover p {
-            color: #000000 !important; /* 悬停时文字变黑 */
+            color: #000000 !important;
         }
         
         /* 2.6 主区域输入框 (如URL输入, 密码输入) */
@@ -125,7 +130,6 @@ st.markdown("""
         }
         
         /* 2.7 修复“输入密钥”标签颜色 (浅灰色) */
-        /* 使用特定选择器覆盖全局白色设置 */
         .main div[data-testid="stTextInput"] label p {
             color: #cccccc !important; 
             font-size: 14px !important;
@@ -138,7 +142,8 @@ st.markdown("""
         
         [data-testid="stSidebar"] h1, 
         [data-testid="stSidebar"] h2, 
-        [data-testid="stSidebar"] h3 {
+        [data-testid="stSidebar"] h3,
+        [data-testid="stSidebar"] h1 span {
             color: #000000 !important;
         }
         
@@ -168,7 +173,6 @@ st.markdown("""
             white-space: nowrap; 
         }
         
-        /* 修复 Checkbox 内部 div 颜色被全局覆盖的问题 */
         [data-testid="stSidebar"] [data-baseweb="checkbox"] div {
              color: #000000 !important;
         }
@@ -455,7 +459,7 @@ else:
 
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # 执行按钮 (白框黑底)
+    # 执行按钮 (白底黑字)
     if st.button("启动"):
         if not GOOGLE_API_KEY or "配置" in GOOGLE_API_KEY:
             st.error("系统错误: API Key 无效或未配置。")
