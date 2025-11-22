@@ -11,7 +11,7 @@ except FileNotFoundError:
     GOOGLE_API_KEY = "请在Streamlit Secrets中配置你的KEY" 
 
 # 🛠️ 修复 404 错误：使用更稳定的模型版本名称
-MODEL_VERSION = "gemini-1.5-pro-002"
+MODEL_VERSION = "gemini-3-pro-preview"
 
 # --- 2. 页面初始化 ---
 st.set_page_config(
