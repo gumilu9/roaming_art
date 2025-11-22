@@ -10,7 +10,8 @@ try:
 except FileNotFoundError:
     GOOGLE_API_KEY = "请在Streamlit Secrets中配置你的KEY" 
 
-MODEL_VERSION = "gemini-1.5-pro"
+# 🛠️ 修复 404 错误：使用更稳定的模型版本名称
+MODEL_VERSION = "gemini-1.5-pro-latest"
 
 # --- 2. 页面初始化 ---
 st.set_page_config(
@@ -26,7 +27,7 @@ if "auth_diagnostic" not in st.session_state:
 if "auth_reader" not in st.session_state:
     st.session_state.auth_reader = False
 
-# --- 4. CSS 深度视觉定制 (加强版：强制白色字体) ---
+# --- 4. CSS 深度视觉定制 ---
 st.markdown("""
     <style>
         /* =========================================
@@ -46,25 +47,23 @@ st.markdown("""
         }
 
         /* =========================================
-           2. 右侧主区域 (Main Area) - 纯黑背景 + 强制纯白文字
+           2. 右侧主区域 (Main Area) - 纯黑背景 + 纯白文字
            ========================================= */
         .stApp {
             background-color: #000000 !important;
         }
         
-        /* ☢️ 核弹级 CSS：强制所有标题变为白色 ☢️ */
-        /* 这会覆盖 Streamlit 默认的 Light Theme 设置 */
-        h1, h2, h3, h4, h5, h6, .stHeadingContainer {
-            color: #ffffff !important;
-            font-family: "HarmonyOS Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif !important;
-        }
-        
-        /* 强制主区域所有 Markdown 文本为白色 */
+        /* 强制主区域所有文字为白色 */
+        .main .block-container h1,
+        .main .block-container h2,
+        .main .block-container h3,
+        .main .block-container h4,
         .main .block-container p,
         .main .block-container span,
         .main .block-container label,
         .main .block-container li,
-        .main .block-container div[data-testid="stMarkdownContainer"] p {
+        .main .block-container div,
+        .main .block-container .stMarkdown {
             color: #ffffff !important;
             font-family: "HarmonyOS Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif !important;
         }
@@ -99,11 +98,18 @@ st.markdown("""
             color: #000000 !important;
         }
         
-        /* 主区域输入框 (如URL输入) */
+        /* 主区域输入框 (如URL输入) - 保持深色底白字 */
         .main input {
             background-color: #1a1a1a !important;
             border: 1px solid #444444 !important;
             color: #ffffff !important;
+        }
+        
+        /* 🎨 UI 修复：专门针对“输入密钥”标签 */
+        /* 找到主区域所有的 TextInput Label，并将其设为浅灰色 */
+        .main div[data-testid="stTextInput"] label p {
+            color: #cccccc !important; /* 浅灰色 */
+            font-size: 14px !important;
         }
         
         /* =========================================
@@ -124,7 +130,7 @@ st.markdown("""
             color: #666666 !important;
         }
         
-        /* 侧边栏输入框 */
+        /* 侧边栏输入框样式 */
         [data-testid="stSidebar"] input {
             background-color: #ffffff !important;
             border: 1px solid #cccccc !important;
@@ -145,7 +151,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# --- 5. System Prompts (保持不变) ---
+# --- 5. System Prompts ---
 
 PROMPT_DIAGNOSTIC = """
 # System Role: 跨学科临床艺术诊断组 (Interdisciplinary Clinical Art Diagnostic Unit)
@@ -372,10 +378,17 @@ if not is_unlocked:
     # --- 锁定状态界面 (Main Area) ---
     st.divider()
     st.markdown("### 权限验证")
-    st.markdown(f"您正在尝试访问 **{mode}**，请输入访问密钥。")
+    
+    # 🎨 UI 修复：使用 HTML span 标签强制文字变白
+    current_mode_text = mode if mode == '漫游艺术领读人' else '图解心灵讨论组'
+    st.markdown(
+        f"""<span style='color: #ffffff; font-size: 1rem;'>您正在尝试访问 **{current_mode_text}**，请输入访问密钥。</span>""", 
+        unsafe_allow_html=True
+    )
     
     password_input = st.text_input("输入密钥", type="password", key="pwd_input")
     
+    # 5. 增加空行
     st.markdown("<br>", unsafe_allow_html=True)
     
     unlock_btn = st.button("解锁终端")
