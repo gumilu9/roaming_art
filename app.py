@@ -10,6 +10,7 @@ try:
 except FileNotFoundError:
     GOOGLE_API_KEY = "请在Streamlit Secrets中配置你的KEY" 
 
+# 🛠️ 修复 404 错误：使用更稳定的模型版本名称
 MODEL_VERSION = "gemini-1.5-pro-002"
 
 # --- 2. 页面初始化 ---
@@ -301,6 +302,22 @@ with st.sidebar:
     )
     
     st.markdown("---")
+    st.caption("🛠️ 调试工具")
+    if st.checkbox("显示可用模型列表"):
+        st.write("正在查询 API 支持的模型...")
+        try:
+            # 获取所有模型
+            all_models = genai.list_models()
+            found = False
+            for m in all_models:
+                # 只显示支持 generateContent (生成内容) 的模型
+                if 'generateContent' in m.supported_generation_methods:
+                    st.code(m.name) # 直接复制这里显示的名字
+                    found = True
+            if not found:
+                st.error("未找到支持生成的模型，请检查 API Key 权限。")
+        except Exception as e:
+            st.error(f"查询失败: {e}")
     
     # 鉴权状态判断
     is_unlocked = False
