@@ -27,7 +27,7 @@ if "auth_diagnostic" not in st.session_state:
 if "auth_reader" not in st.session_state:
     st.session_state.auth_reader = False
 
-# --- 4. CSS 深度视觉定制 (终极白字修正版) ---
+# --- 4. CSS 深度视觉定制 (按钮黑字修正版) ---
 st.markdown("""
     <style>
         /* =========================================
@@ -53,19 +53,14 @@ st.markdown("""
             background-color: #000000 !important;
         }
         
-        /* ☢️ 核心修复 1：强制标题纯白 ☢️ */
-        /* 包含 span 以防止 Streamlit Cloud 的主题覆盖 */
-        h1, h1 span, .stHeadingContainer h1 {
+        /* ☢️ 修复 1：强制标题纯白 ☢️ */
+        h1, h1 span, .stHeadingContainer h1,
+        h2, h2 span, h3, h3 span, h4, h4 span {
             color: #ffffff !important;
             font-family: "HarmonyOS Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif !important;
         }
         
-        /* 副标题、小标题纯白 */
-        h2, h2 span, h3, h3 span, h4, h4 span {
-            color: #ffffff !important;
-        }
-        
-        /* ☢️ 核心修复 2：普通文本、生成的报告正文强制纯白 ☢️ */
+        /* ☢️ 修复 2：普通文本、生成的报告正文强制纯白 ☢️ */
         .main p, .main span, .main div, .main li, .main strong, .main em {
             color: #ffffff !important;
             font-family: "HarmonyOS Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif !important;
@@ -76,18 +71,16 @@ st.markdown("""
             color: #ffffff !important;
         }
 
-        /* 2.4 修复 Tabs 标签颜色 */
+        /* Tabs 样式 (黑底白字) */
         .stTabs { background-color: #000000; }
         .stTabs [data-baseweb="tab-list"] { background-color: #000000; gap: 20px; }
         .stTabs [data-baseweb="tab"] {
             background-color: transparent !important;
             border: none !important;
         }
-        /* 未选中状态：浅灰 */
         .stTabs [data-baseweb="tab"] p {
             color: #aaaaaa !important; 
         }
-        /* 选中状态：纯白 + 加粗 */
         .stTabs [aria-selected="true"] p {
             color: #ffffff !important;
             font-weight: bold;
@@ -97,39 +90,38 @@ st.markdown("""
         }
 
         /* ☢️ 核心修复 3：按钮样式 (白底黑字) ☢️ */
-        /* 无论是“解锁终端”还是“启动”，统一设为白底黑字 */
-        .main div.stButton > button {
+        /* 针对 stButton 下的 button 元素 */
+        .stButton > button {
             width: 100%;
             border-radius: 0px !important;
             border: 1px solid #ffffff !important;
-            
             background-color: #ffffff !important; /* 白底 */
-            color: #000000 !important; /* 黑字 */
-            
-            font-weight: 600;
             padding: 12px;
             transition: all 0.3s ease;
         }
-        /* 按钮内部的文字标签强制变黑 */
-        .main div.stButton > button p {
-            color: #000000 !important; 
+
+        /* 🚨 强制按钮内的所有层级文字为黑色 🚨 */
+        .stButton > button, 
+        .stButton > button *, 
+        .stButton > button p {
+            color: #000000 !important; /* 黑字 */
+            font-weight: 600 !important;
         }
         
-        /* 悬停效果：略微变灰 */
-        .main div.stButton > button:hover {
-            background-color: #e0e0e0 !important;
+        /* 悬停效果：背景微灰，文字依然黑 */
+        .stButton > button:hover {
+            background-color: #f0f0f0 !important;
             border-color: #ffffff !important;
-            color: #000000 !important;
         }
         
-        /* 2.6 主区域输入框 (如URL输入, 密码输入) */
+        /* 主区域输入框 */
         .main input {
             background-color: #1a1a1a !important;
             border: 1px solid #444444 !important;
             color: #ffffff !important;
         }
         
-        /* 2.7 修复“输入密钥”标签颜色 (浅灰色) */
+        /* 修复“输入密钥”标签颜色 (浅灰色) */
         .main div[data-testid="stTextInput"] label p {
             color: #cccccc !important; 
             font-size: 14px !important;
@@ -152,7 +144,7 @@ st.markdown("""
         [data-testid="stSidebar"] label,
         [data-testid="stSidebar"] span,
         [data-testid="stSidebar"] div {
-            color: #000000 !important; /* 侧边栏文字全黑 */
+            color: #000000 !important; 
         }
         
         /* 侧边栏输入框 */
@@ -161,7 +153,7 @@ st.markdown("""
             border: 1px solid #cccccc !important;
             min-height: 36px;
             color: #000000 !important; 
-            caret-color: #cccccc !important; /* 光标浅灰 */
+            caret-color: #cccccc !important; 
         }
         
         [data-testid="stSidebar"] input:disabled {
@@ -173,6 +165,7 @@ st.markdown("""
             white-space: nowrap; 
         }
         
+        /* 修复 Checkbox 内部 div 颜色 */
         [data-testid="stSidebar"] [data-baseweb="checkbox"] div {
              color: #000000 !important;
         }
