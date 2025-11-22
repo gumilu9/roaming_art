@@ -21,13 +21,12 @@ st.set_page_config(
 )
 
 # --- 3. 状态管理 (Session State) ---
-# 注意：变量名保持原样(auth_diagnostic)，但逻辑上对应“图解心灵讨论组”
 if "auth_diagnostic" not in st.session_state:
     st.session_state.auth_diagnostic = False
 if "auth_reader" not in st.session_state:
     st.session_state.auth_reader = False
 
-# --- 4. CSS 深度视觉定制 ---
+# --- 4. CSS 深度视觉定制 (加强版：强制白色字体) ---
 st.markdown("""
     <style>
         /* =========================================
@@ -47,23 +46,25 @@ st.markdown("""
         }
 
         /* =========================================
-           2. 右侧主区域 (Main Area) - 纯黑背景 + 纯白文字
+           2. 右侧主区域 (Main Area) - 纯黑背景 + 强制纯白文字
            ========================================= */
         .stApp {
             background-color: #000000 !important;
         }
         
-        /* 强制主区域所有文字为白色 */
-        .main .block-container h1,
-        .main .block-container h2,
-        .main .block-container h3,
-        .main .block-container h4,
+        /* ☢️ 核弹级 CSS：强制所有标题变为白色 ☢️ */
+        /* 这会覆盖 Streamlit 默认的 Light Theme 设置 */
+        h1, h2, h3, h4, h5, h6, .stHeadingContainer {
+            color: #ffffff !important;
+            font-family: "HarmonyOS Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif !important;
+        }
+        
+        /* 强制主区域所有 Markdown 文本为白色 */
         .main .block-container p,
         .main .block-container span,
         .main .block-container label,
         .main .block-container li,
-        .main .block-container div,
-        .main .block-container .stMarkdown {
+        .main .block-container div[data-testid="stMarkdownContainer"] p {
             color: #ffffff !important;
             font-family: "HarmonyOS Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif !important;
         }
@@ -98,7 +99,7 @@ st.markdown("""
             color: #000000 !important;
         }
         
-        /* 主区域输入框 (如URL输入) - 保持深色底白字 */
+        /* 主区域输入框 (如URL输入) */
         .main input {
             background-color: #1a1a1a !important;
             border: 1px solid #444444 !important;
@@ -123,26 +124,20 @@ st.markdown("""
             color: #666666 !important;
         }
         
-        /* 🔍 核心修改：侧边栏输入框样式 */
+        /* 侧边栏输入框 */
         [data-testid="stSidebar"] input {
             background-color: #ffffff !important;
             border: 1px solid #cccccc !important;
             min-height: 36px;
-            
-            /* 1. 输入文字是黑色的 */
             color: #000000 !important; 
-            
-            /* 2. 光标是浅灰色的 */
             caret-color: #cccccc !important; 
         }
         
-        /* 禁用状态 */
         [data-testid="stSidebar"] input:disabled {
             background-color: #eeeeee !important;
             color: #999999 !important;
         }
         
-        /* 侧边栏 Checkbox 文字不换行 */
         [data-testid="stSidebar"] label[data-baseweb="checkbox"] {
             white-space: nowrap; 
         }
@@ -150,7 +145,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# --- 5. System Prompts ---
+# --- 5. System Prompts (保持不变) ---
 
 PROMPT_DIAGNOSTIC = """
 # System Role: 跨学科临床艺术诊断组 (Interdisciplinary Clinical Art Diagnostic Unit)
@@ -294,7 +289,6 @@ def load_image_from_url(url):
 # --- 7. 侧边栏逻辑 ---
 with st.sidebar:
     st.markdown("### 模式选择")
-    # ⚠️ 核心修改：名称变更为“图解心灵讨论组”
     mode = st.radio(
         "Select Mode",
         ["图解心灵讨论组", "漫游艺术领读人"], 
@@ -303,15 +297,14 @@ with st.sidebar:
     
     st.markdown("---")
     
-    # 1. 鉴权状态判断
+    # 鉴权状态判断
     is_unlocked = False
-    # ⚠️ 逻辑同步修改：mode名称匹配
     if mode == "图解心灵讨论组" and st.session_state.auth_diagnostic:
         is_unlocked = True
     elif mode == "漫游艺术领读人" and st.session_state.auth_reader:
         is_unlocked = True
     
-    # 2. 全局禁用开关
+    # 全局禁用开关
     global_disable = not is_unlocked
 
     st.markdown("### 档案录入")
@@ -379,7 +372,6 @@ if not is_unlocked:
     # --- 锁定状态界面 (Main Area) ---
     st.divider()
     st.markdown("### 权限验证")
-    # 动态白色提示语
     st.markdown(f"您正在尝试访问 **{mode}**，请输入访问密钥。")
     
     password_input = st.text_input("输入密钥", type="password", key="pwd_input")
@@ -389,7 +381,6 @@ if not is_unlocked:
     unlock_btn = st.button("解锁终端")
     
     if unlock_btn:
-        # ⚠️ 密码验证逻辑同步修改
         if mode == "图解心灵讨论组" and password_input == "0006":
             st.session_state.auth_diagnostic = True
             st.rerun()
@@ -444,9 +435,8 @@ else:
         genai.configure(api_key=GOOGLE_API_KEY)
         
         # --- 指令分发 ---
-        # ⚠️ 模式名称判断同步修改
         if mode == "图解心灵讨论组":
-            # 诊断间逻辑：使用 PROMPT_DIAGNOSTIC
+            # 诊断间逻辑
             dynamic_instructions = ""
             if unknown_artist:
                 dynamic_instructions += "\n⚠️ 艺术家身份未知，请忽略背景分析，强制执行盲测模式。"
@@ -467,7 +457,7 @@ else:
             final_system_prompt = PROMPT_DIAGNOSTIC
 
         else:
-            # 领读人逻辑：使用 PROMPT_READER (需替换占位符)
+            # 领读人逻辑
             current_title = artwork_title if artwork_title else "未知作品"
             current_artist = artist_name if artist_name else "未知艺术家"
             current_year = artwork_year if artwork_year else "未知年份"
