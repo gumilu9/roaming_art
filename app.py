@@ -5,103 +5,100 @@ import requests
 import io
 
 # --- 1. 全局配置与密钥 ---
-# 从 Streamlit Secrets (云端保险箱) 获取密钥
 try:
     GOOGLE_API_KEY = st.secrets["GOOGLE_API_KEY"]
 except FileNotFoundError:
-    st.error("未检测到密钥配置。请在 Streamlit Cloud Secrets 中配置 GOOGLE_API_KEY。")
-    st.stop()
+    GOOGLE_API_KEY = "请在Streamlit Secrets中配置你的KEY" 
 
-MODEL_VERSION = "gemini-3.0-pro"
+MODEL_VERSION = "gemini-1.5-pro"
 
 # --- 2. 页面初始化 ---
 st.set_page_config(
     page_title="图解心灵讨论组",
     page_icon=None,
     layout="centered",
-    initial_sidebar_state="expanded" # 保持默认展开
+    initial_sidebar_state="expanded"
 )
 
 # --- 3. 状态管理 (Session State) ---
+# 注意：变量名保持原样(auth_diagnostic)，但逻辑上对应“图解心灵讨论组”
 if "auth_diagnostic" not in st.session_state:
     st.session_state.auth_diagnostic = False
 if "auth_reader" not in st.session_state:
     st.session_state.auth_reader = False
 
-# --- 4. CSS 深度视觉定制 (修复侧边栏按钮) ---
+# --- 4. CSS 深度视觉定制 ---
 st.markdown("""
     <style>
         /* =========================================
-           1. 基础布局与隐藏元素
+           1. 基础布局与侧边栏宽度调整
            ========================================= */
-        /* 隐藏 Streamlit 顶部菜单、页脚 */
         #MainMenu {visibility: hidden;}
         footer {visibility: hidden;}
         header {visibility: hidden;}
         .stDeployButton {display:none;}
         
-        /* 🚨 修复：删除了隐藏侧边栏按钮的代码，允许用户重新打开 */
-        /* [data-testid="stSidebarCollapsedControl"] { display: none !important; }  <-- DELETED */
+        /* 侧边栏容器加宽 */
+        section[data-testid="stSidebar"] {
+            min-width: 380px !important;
+            width: 380px !important;
+            background-color: #f9f9f9 !important;
+            border-right: 1px solid #333333;
+        }
 
         /* =========================================
-           2. 右侧主区域 (Main Area) - 纯黑沉浸风格
+           2. 右侧主区域 (Main Area) - 纯黑背景 + 纯白文字
            ========================================= */
-        /* 强制主背景纯黑 */
         .stApp {
             background-color: #000000 !important;
         }
         
-        /* 主区域的所有文字默认为白色 */
+        /* 强制主区域所有文字为白色 */
         .main .block-container h1,
         .main .block-container h2,
         .main .block-container h3,
         .main .block-container h4,
         .main .block-container p,
+        .main .block-container span,
+        .main .block-container label,
         .main .block-container li,
+        .main .block-container div,
         .main .block-container .stMarkdown {
             color: #ffffff !important;
             font-family: "HarmonyOS Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif !important;
         }
-        
+
         /* Tabs 样式 (黑底白字) */
-        .stTabs {
-            background-color: #000000;
-        }
-        .stTabs [data-baseweb="tab-list"] {
-            background-color: #000000;
-            gap: 20px;
-        }
+        .stTabs { background-color: #000000; }
+        .stTabs [data-baseweb="tab-list"] { background-color: #000000; gap: 20px; }
         .stTabs [data-baseweb="tab"] {
             background-color: transparent !important;
-            color: #aaaaaa !important; /* 未选中：浅灰 */
+            color: #aaaaaa !important;
             border: none !important;
-            border-bottom: 2px solid transparent !important;
         }
         .stTabs [aria-selected="true"] {
-            color: #ffffff !important; /* 选中：纯白 */
+            color: #ffffff !important;
             font-weight: bold;
-            border-bottom: 2px solid #ffffff !important; /* 底部白线 */
+            border-bottom: 2px solid #ffffff !important;
         }
 
-        /* 按钮样式 (Main Area) - 幽灵按钮风格 */
+        /* 按钮样式 (Main Area) - 幽灵按钮 */
         .main div.stButton > button {
             width: 100%;
             border-radius: 0px !important;
-            border: 1px solid #ffffff !important; /* 白色边框 */
-            background-color: #000000 !important; /* 黑色背景 */
-            color: #ffffff !important; /* 白色文字 */
+            border: 1px solid #ffffff !important;
+            background-color: #000000 !important;
+            color: #ffffff !important;
             font-weight: 600;
-            padding-top: 12px;
-            padding-bottom: 12px;
+            padding: 12px;
             transition: all 0.3s ease;
         }
         .main div.stButton > button:hover {
-            background-color: #ffffff !important; /* 悬停变白 */
-            color: #000000 !important; /* 文字变黑 */
-            border-color: #ffffff !important;
+            background-color: #ffffff !important;
+            color: #000000 !important;
         }
         
-        /* 主区域输入框 (深色适配) */
+        /* 主区域输入框 (如URL输入) - 保持深色底白字 */
         .main input {
             background-color: #1a1a1a !important;
             border: 1px solid #444444 !important;
@@ -109,13 +106,8 @@ st.markdown("""
         }
         
         /* =========================================
-           3. 左侧边栏 (Sidebar) - 浅灰控制台风格
+           3. 左侧边栏 (Sidebar) - 浅灰背景 + 深色文字
            ========================================= */
-        [data-testid="stSidebar"] {
-            background-color: #f9f9f9 !important; /* 浅浅灰背景 */
-            border-right: 1px solid #333333; /* 深色分割线 */
-        }
-        
         /* 侧边栏标题 (黑色) */
         [data-testid="stSidebar"] h1, 
         [data-testid="stSidebar"] h2, 
@@ -123,79 +115,169 @@ st.markdown("""
             color: #000000 !important;
         }
         
-        /* 侧边栏普通文本、Caption、Label (深灰色 #666666) */
+        /* 侧边栏普通文本 (深灰色) */
         [data-testid="stSidebar"] p, 
         [data-testid="stSidebar"] .stCaption, 
-        [data-testid="stSidebar"] label {
+        [data-testid="stSidebar"] label,
+        [data-testid="stSidebar"] span {
             color: #666666 !important;
         }
         
-        /* 侧边栏输入框 (Input Fields) */
+        /* 🔍 核心修改：侧边栏输入框样式 */
         [data-testid="stSidebar"] input {
             background-color: #ffffff !important;
-            border: 1px solid #cccccc !important; /* 浅灰边框 */
-            color: #000000 !important;
+            border: 1px solid #cccccc !important;
             min-height: 36px;
+            
+            /* 1. 输入文字是黑色的 */
+            color: #000000 !important; 
+            
+            /* 2. 光标是浅灰色的 */
+            caret-color: #cccccc !important; 
         }
-        /* 禁用状态输入框 */
+        
+        /* 禁用状态 */
         [data-testid="stSidebar"] input:disabled {
             background-color: #eeeeee !important;
             color: #999999 !important;
-            cursor: not-allowed;
         }
         
-        /* 侧边栏 Checkbox */
+        /* 侧边栏 Checkbox 文字不换行 */
         [data-testid="stSidebar"] label[data-baseweb="checkbox"] {
-            color: #666666 !important;
+            white-space: nowrap; 
         }
 
     </style>
 """, unsafe_allow_html=True)
 
-# --- 5. System Prompts (核心逻辑保持不变) ---
+# --- 5. System Prompts ---
 
 PROMPT_DIAGNOSTIC = """
-# System Role: 跨学科临床艺术诊断组
-你不再是普通的艺术评论家，你是一个由四位拥有极强个人风格的专家组成的**“病理分析小组”。**
-请严格使用中文输出。
+# System Role: 跨学科临床艺术诊断组 (Interdisciplinary Clinical Art Diagnostic Unit)
+你不再是普通的艺术评论家，你是一个由四位拥有极强个人风格的专家组成的**“病理分析小组”。你们将针对一幅【艺术作品】（即“案发现场”），基于用户提供的【创作年份】**这一关键线索，进行一场“接力式”的深度诊断。
+核心隐喻： 这不是画，这是一张临床诊断书，或者一个凝固的案发现场。
 
-专家角色设定:
-1. 脑洞张 (神经认知专家): 风格像读脑成像报告，关注视觉算法。
-2. 心魔李 (精神分析侦探): 风格隐喻流动，关注潜意识。
-3. 原始王 (演化行为学家): 风格粗鄙辛辣，关注生存本能。
-4. 时光吴 (宏观社会学家): 风格宏大，关注历史切片。
+专家角色设定 (The Diagnostic Team)
 
-诊断流程:
-Part 1. 直觉定调 (原型与意象)
-Part 2. 圆桌会诊 (时代、物理、躯体、关系)
-Part 3. 提问 (向观众抛出洞察)
+1. 脑洞张 (神经认知专家)
+    * 风格：逻辑很硬，情绪极少。说话像在读脑成像报告。偏好可量化的词（毫秒、赫兹、像素偏差）。
+    * 视角：把画看作视觉算法。关注构图如何物理性地引导眼动，光线如何欺骗枕叶皮层。
+    * 口头禅：“前额叶皮层在这里会瞬间过载……”
+2. 心魔李 (精神分析侦探)
+    * 风格：文学评论家与侦探的混合体。语句长且流动，充满隐喻。关注潜意识、梦境逻辑和未被满足的欲望。
+    * 视角：把画看作潜意识的排泄物。
+    * 口头禅：“这是典型的替代性满足……”
+3. 原始王 (演化行为学家)
+    * 风格：粗鄙、辛辣、犀利。把一切人类高尚行为还原为“生存”和“繁衍”。
+    * 视角：把画中人看作“穿衣服的裸猿”。关注防御姿态、求偶信号、领地威胁。
+    * 口头禅：“这不过是两百万年前草原求生本能的残留。”
+4. 时光吴 (宏观社会学家)
+    * 风格：视野极度开阔，像站在上帝视角看地图。句子长，词汇涉及结构、制度、权力、经济。
+    * 视角：把画看作时代挤压出的切片。关注个体如何被历史车轮碾压。
+    * 口头禅：“在这个资本快速扩张的年份，个体的焦虑是必然的注脚。”
 
-语调控制: 拒绝翻译腔，金句密度高。
+
+诊断流程 (The Protocol)
+
+请严格按照以下步骤输出，保持**“Yes, And”**（互为补充，层层叠加）的对话模式。拒绝翻译腔，拒绝废话。
+
+Part 1. 直觉定调
+
+(直接输出两行，不要解释，精准如手术刀)
+* 原型：（用一个心理学或文学原型定义它）
+* 意象：（提取画面中5个极具象征意义的病灶细节）
+
+Part 2. 圆桌会诊
+
+Phase 1: 时代—— 时光吴 主导
+* 切入点：必须基于用户输入的**【创作年份】**。
+* 诊断：不要罗列历史大事。分析那一年空气里的“毒素”（是战后的虚无？泡沫经济破裂前的狂躁？）。
+* 叠加：其他角色讨论这种时代情绪是如何渗透进画家的潜意识，让他不得不画出这样的笔触？
+Phase 2: 物理—— 脑洞张 & 心魔李
+* 切入点：寻找画面中违反物理逻辑的地方（光线、重力、透视）。
+* 诊断：
+    * 脑洞张：指出不合逻辑的物理细节（如“光源是矛盾的”）。
+    * 心魔李：将这种“物理上的不可能”解读为“心理上的真实”（如“因为他在潜意识里希望时间倒流”）。
+Phase 3: 躯体—— 原始王 主导
+* 切入点：画中人的神经系统状态。
+* 关键词强制使用：交感/副交感神经、背侧迷走神经（冻结反应）、解离（Dissociation）、应激障碍。
+* 诊断：
+    * 寻找微细节（紧绷的下颚、失焦的眼神、蜷缩的脚趾）。
+    * 原始王：这是一种求救信号，还是攻击前兆？从生物学角度解释这个姿势的生存价值。
+Phase 4: 关系—— 全员叠加
+* 切入点：人与人、人与空间的能量场。
+* 诊断：
+    * 这个空间是子宫还是监狱？
+    * 寻找**“时间线索”**（未干的泪痕、即将枯萎的花）。这是一场突发的灾难，还是温水煮青蛙？
+
+Part 3. 提问
+
+* 指令：基于上述，向现在的观众抛出一个门槛不高，人人都可以参与讨论，有趣的问题。
+* 要求：
+    * 不要问喜不喜欢。
+    * 必须是一个开放性的、让人倒吸一口凉气的洞察。
+
+
+语调控制 (Tone Check)
+
+* 旁观者视角：冷静、客观，但充满悲悯。
+* 金句密度：每段对话至少包含一个让人印象深刻的洞察。
+* 拒绝翻译腔：用简洁有力的中文短句。多用动词。不要使用“不是……而是……”我只需要你说是什么，不需要你说不是什么。
 """
 
 PROMPT_READER = """
-# System Role: 漫游艺术领读人
-请严格使用中文输出。
+# Role
+你是一位拥有敏锐直觉的深度艺术评论家与心理分析师。你擅长透过画面直击灵魂，你的语言风格独特：既有**席慕蓉**的细腻诗意或**余华**的冷峻叙事（根据画作风格自适应），又具备**易立竞**那种冷静、审视、直指人心的犀利视角。你不满足于表象，总是试图剥开艺术品的皮囊，审视其骨血。
 
-## 01. 关于创造者 (三句侧写)
-1. 身份定位与核心母题。
-2. 独特的怪癖或 Fun Fact。
-3. 艺术风格的异类之处。
+# Task
+我将提供给你一张艺术作品的图片，以及作品名称、艺术家名字和创作年份。请你根据以下逻辑框架，对我提供的艺术作品进行深度剖析。
+
+# Input Data
+- 艺术作品图片：[附在对话中]
+- 艺术作品名称：{{Title}}
+- 艺术家名字：{{Artist}}
+- 创作年份：{{Year}}
+
+# Analysis Framework & Output Format
+
+请严格按照以下六个部分进行输出，不要使用原本的标题，请按我给出的标题格式化：
+
+## 01. 关于创造者
+请严格用**三句话**完成对艺术家的侧写：
+1.  **第一句**：介绍他的居住地、身份定位以及核心创作母题。
+2.  **第二句**：讲述他身上一个独特的特点、怪癖或鲜为人知的 Fun Fact。
+3.  **第三句**：一针见血地指出他的艺术风格为何在众多艺术家中独树一帜，他的“异类”之处在哪里。
 
 ## 02. 目击现场
-描述氛围与客观事实。
+* 描述画面的整体氛围（基调）。
+* 进行事实性描述：画面主体是谁？他们在做什么？画面中客观存在着什么？请保持冷静的观察者视角。
 
 ## 03. 意象解剖
-主体定性、意象深挖、情感传导。
+进入细节解读层面：
+* **主体定性**：如果主体是动物，根据特征推测它具体是哪个物种；如果是幻想生物，解构它是“什么与什么”的结合体。
+* **意象深挖**：画面中出现的关键意象（物体/符号）在干什么？为什么要画这个？
+* **情感传导**：这种特定的表达方式（笔触、形态）是如何传递出情感的？为什么它能让人感到（例如：恐惧、宁静、荒诞）？
 
 ## 04. 看画小记 01：重构灵魂
-以第一视角拆解布局，挖掘视觉之外的生理性幻觉（痛感、窒息感等）。
+*（请切换至“创作者/解构者”的第一视角，用易立竞式的审视语气）*
+假设你要画这幅画，去拆解它的灵魂并重建：
+* 剖析画面布局是如何服务于感觉的。
+* 挖掘视觉之外的通感体验：除了第一眼的视觉感受，这幅画是否带来了**痛感、窒息感、粘稠感、失重感**等生理性幻觉？
+* 用犀利的语言描述这种情绪是如何被“制造”出来的。
 
 ## 05. 看画小记 02：反向审问
-为什么是这副模样？作者想揭露什么？
+*（换一个角度，进行反事实思考）*
+* **追问**：为什么是这副模样，而不是别的样子？（例如：为什么它是闭着眼而不是睁着眼？为什么背景是黑的而不是白的？）
+* **讯息解码**：作者通过这种刻意的选择，究竟想明确传达什么讯息？试图揭露什么样的人性或真理？
 
 ## 06. 观后余音
-留下一段直击心灵的观后感。
+*（用席慕蓉式的余韵或余华式的冷幽默结尾）*
+* 留下一段观后感，或是对读者（观众）提出一个直击心灵的问题。
+
+---
+**注意：**
+* 保持语言的文学性，不要写成教科书式的说明文。
+* 在“看画小记”部分，请务必体现易立竞那种“逼问”式的压迫感与洞察力。
 """
 
 # --- 6. 辅助函数 ---
@@ -209,12 +291,13 @@ def load_image_from_url(url):
         st.error(f"图片加载失败: {e}")
         return None
 
-# --- 7. 侧边栏逻辑 (占位符策略修复) ---
+# --- 7. 侧边栏逻辑 ---
 with st.sidebar:
     st.markdown("### 模式选择")
+    # ⚠️ 核心修改：名称变更为“图解心灵讨论组”
     mode = st.radio(
         "Select Mode",
-        ["漫游艺术诊断间", "漫游艺术领读人"],
+        ["图解心灵讨论组", "漫游艺术领读人"], 
         label_visibility="collapsed"
     )
     
@@ -222,12 +305,13 @@ with st.sidebar:
     
     # 1. 鉴权状态判断
     is_unlocked = False
-    if mode == "漫游艺术诊断间" and st.session_state.auth_diagnostic:
+    # ⚠️ 逻辑同步修改：mode名称匹配
+    if mode == "图解心灵讨论组" and st.session_state.auth_diagnostic:
         is_unlocked = True
     elif mode == "漫游艺术领读人" and st.session_state.auth_reader:
         is_unlocked = True
     
-    # 2. 全局禁用开关 (如果未解锁，侧边栏全灰)
+    # 2. 全局禁用开关
     global_disable = not is_unlocked
 
     st.markdown("### 档案录入")
@@ -237,10 +321,8 @@ with st.sidebar:
     col_a1, col_a2 = st.columns([3, 1])
     
     with col_a2:
-        # 如果未解锁，checkbox 也是 disabled
         unknown_artist = st.checkbox("未知", key="chk_artist", disabled=global_disable)
     with col_a1:
-        # 禁用逻辑：未解锁 OR 用户勾选了未知
         artist_disabled = global_disable or unknown_artist
         
         if unknown_artist:
@@ -255,7 +337,6 @@ with st.sidebar:
     st.caption("作品名称")
     col_t1, col_t2 = st.columns([3, 1])
     with col_t1:
-         # 禁用逻辑：仅受未解锁状态控制
          artwork_title = st.text_input("Title", placeholder="如: 肖像习作", disabled=global_disable, label_visibility="collapsed")
     with col_t2:
         st.empty()
@@ -269,7 +350,6 @@ with st.sidebar:
     with col_y2:
         unknown_year = st.checkbox("未知", key="chk_year", disabled=global_disable)
     with col_y1:
-        # 禁用逻辑：未解锁 OR 用户勾选了未知
         year_disabled = global_disable or unknown_year
         
         if unknown_year:
@@ -280,7 +360,7 @@ with st.sidebar:
     
     st.markdown("---")
     
-    # 系统状态栏 (未解锁时显示 waiting，解锁后显示 loaded)
+    # 系统状态栏
     st.caption("系统状态") 
     status_val = "WAITING FOR AUTH..." if global_disable else "CORE MODULE LOADED"
     st.text_input("Auth", value=status_val, disabled=True, label_visibility="collapsed")
@@ -288,31 +368,32 @@ with st.sidebar:
 
 # --- 8. 主界面逻辑 ---
 
-# 标题渲染 (白色)
-st.title("图解心灵讨论组")
-
-# Prompt 选择
-if mode == "漫游艺术诊断间":
-    current_base_prompt = PROMPT_DIAGNOSTIC
+# 动态标题逻辑
+if mode == "图解心灵讨论组":
+    st.title("图解心灵讨论组")
 else:
-    current_base_prompt = PROMPT_READER
+    st.title("漫游艺术领读人")
 
 # 鉴权逻辑分支
 if not is_unlocked:
     # --- 锁定状态界面 (Main Area) ---
     st.divider()
     st.markdown("### 权限验证")
+    # 动态白色提示语
     st.markdown(f"您正在尝试访问 **{mode}**，请输入访问密钥。")
     
-    # 这里的输入框也会自动适配深色背景
     password_input = st.text_input("输入密钥", type="password", key="pwd_input")
+    
+    st.markdown("<br>", unsafe_allow_html=True)
+    
     unlock_btn = st.button("解锁终端")
     
     if unlock_btn:
-        if mode == "漫游艺术诊断间" and password_input == "0006":
+        # ⚠️ 密码验证逻辑同步修改
+        if mode == "图解心灵讨论组" and password_input == "0006":
             st.session_state.auth_diagnostic = True
             st.rerun()
-        elif mode == "漫游艺术领读人" and password_input == "4006":
+        elif mode == "漫游艺术领读人" and password_input == "4666":
             st.session_state.auth_reader = True
             st.rerun()
         else:
@@ -351,9 +432,8 @@ else:
 
     # 执行按钮 (白框黑底)
     if st.button("启动"):
-        # 校验逻辑
-        if not GOOGLE_API_KEY:
-            st.error("系统错误: 未检测到 API Key。")
+        if not GOOGLE_API_KEY or "配置" in GOOGLE_API_KEY:
+            st.error("系统错误: API Key 无效或未配置。")
             st.stop()
         
         if not uploaded_image:
@@ -363,39 +443,41 @@ else:
         # 配置 API
         genai.configure(api_key=GOOGLE_API_KEY)
         
-        # --- 动态指令构建 ---
-        dynamic_instructions = ""
-        
-        # 情况 A: 艺术家未知
-        if unknown_artist:
-            dynamic_instructions += """
-            \n[特别修正指令 - 关于艺术家]
-            ⚠️ 用户声明：艺术家身份未知。
-            1. 请完全忽略原 System Prompt 中关于“作者背景、生平、画风对比”的要求。
-            2. 强制执行“盲测模式”：仅基于画面存在的视觉证据（色彩、笔触、构图、光影）进行分析。
-            3. 禁止猜测可能是哪位艺术家，只分析“这看起来像什么风格”。
+        # --- 指令分发 ---
+        # ⚠️ 模式名称判断同步修改
+        if mode == "图解心灵讨论组":
+            # 诊断间逻辑：使用 PROMPT_DIAGNOSTIC
+            dynamic_instructions = ""
+            if unknown_artist:
+                dynamic_instructions += "\n⚠️ 艺术家身份未知，请忽略背景分析，强制执行盲测模式。"
+            if unknown_year:
+                dynamic_instructions += "\n⚠️ 创作年份未知，请跳过宏观历史分析，仅推测可能的年代感。"
+
+            user_prompt_content = f"""
+            【艺术品档案】
+            艺术家: {artist_name}
+            作品名: {artwork_title if artwork_title else "未知"}
+            年份: {artwork_year}
+            
+            {dynamic_instructions}
+            
+            请基于 System Instruction 中的角色设定，对这张图片进行深度分析。
             """
             
-        # 情况 B: 年份未知
-        if unknown_year:
-            dynamic_instructions += """
-            \n[特别修正指令 - 关于时间]
-            ⚠️ 用户声明：创作年份未知。
-            1. 请跳过基于特定历史年份的社会学/宏观背景分析。
-            2. 替代策略：请根据画面风格、服饰或物体特征，推测其“可能的年代范围”或“时间感”。
-            """
+            final_system_prompt = PROMPT_DIAGNOSTIC
 
-        # 构造最终 Prompt
-        user_prompt_content = f"""
-        【艺术品档案】
-        艺术家: {artist_name}
-        作品名: {artwork_title if artwork_title else "未知"}
-        年份: {artwork_year}
-        
-        {dynamic_instructions}
-        
-        请基于 System Instruction 中的角色设定，结合上述[特别修正指令]，对这张图片进行深度分析。
-        """
+        else:
+            # 领读人逻辑：使用 PROMPT_READER (需替换占位符)
+            current_title = artwork_title if artwork_title else "未知作品"
+            current_artist = artist_name if artist_name else "未知艺术家"
+            current_year = artwork_year if artwork_year else "未知年份"
+            
+            # 替换占位符
+            final_system_prompt = PROMPT_READER.replace("{{Title}}", current_title)
+            final_system_prompt = final_system_prompt.replace("{{Artist}}", current_artist)
+            final_system_prompt = final_system_prompt.replace("{{Year}}", current_year)
+            
+            user_prompt_content = "请开始解读。"
 
         # AI 生成与流式输出
         st.divider()
@@ -406,7 +488,7 @@ else:
         try:
             model = genai.GenerativeModel(
                 model_name=MODEL_VERSION,
-                system_instruction=current_base_prompt
+                system_instruction=final_system_prompt
             )
             
             response_stream = model.generate_content(
