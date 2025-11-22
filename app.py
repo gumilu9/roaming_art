@@ -10,8 +10,10 @@ try:
 except FileNotFoundError:
     GOOGLE_API_KEY = "请在Streamlit Secrets中配置你的KEY" 
 
-# 🛠️ 修复 404 错误：使用更稳定的模型版本名称
-MODEL_VERSION = "gemini-3-pro-preview"
+# 🛠️ 模型版本设置
+# 目前 API 稳定支持的是 gemini-1.5-pro-latest
+# 如果你确实拥有 gemini-3-pro-preview 的内部权限，请手动修改下方字符串，否则会报错 404
+MODEL_VERSION = "gemini-1.5-pro-latest"
 
 # --- 2. 页面初始化 ---
 st.set_page_config(
@@ -27,11 +29,11 @@ if "auth_diagnostic" not in st.session_state:
 if "auth_reader" not in st.session_state:
     st.session_state.auth_reader = False
 
-# --- 4. CSS 深度视觉定制 ---
+# --- 4. CSS 深度视觉定制 (终极白字版) ---
 st.markdown("""
     <style>
         /* =========================================
-           1. 基础布局与侧边栏宽度调整
+           1. 基础布局与侧边栏宽度
            ========================================= */
         #MainMenu {visibility: hidden;}
         footer {visibility: hidden;}
@@ -47,96 +49,114 @@ st.markdown("""
         }
 
         /* =========================================
-           2. 右侧主区域 (Main Area) - 纯黑背景 + 纯白文字
+           2. 右侧主区域 (Main Area) - 纯黑底 + 纯白字
            ========================================= */
         .stApp {
             background-color: #000000 !important;
         }
         
-        /* 强制主区域所有文字为白色 */
-        .main .block-container h1,
-        .main .block-container h2,
-        .main .block-container h3,
-        .main .block-container h4,
-        .main .block-container p,
-        .main .block-container span,
-        .main .block-container label,
-        .main .block-container li,
-        .main .block-container div,
-        .main .block-container .stMarkdown {
+        /* ☢️ 核弹级 CSS：强制右侧所有元素变白 ☢️ */
+        
+        /* 2.1 所有的标题 (H1-H6) */
+        .main h1, .main h2, .main h3, .main h4, .main h5, .main h6, 
+        .main .stHeadingContainer {
             color: #ffffff !important;
             font-family: "HarmonyOS Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif !important;
         }
+        
+        /* 2.2 普通文本、Markdown 正文 (关键：修复分析报告灰色问题) */
+        .main p, .main span, .main div, .main li, .main strong, .main em {
+            color: #ffffff !important;
+            font-family: "HarmonyOS Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif !important;
+        }
+        
+        /* 2.3 专门针对 Streamlit Markdown 容器的修复 */
+        .stMarkdown, [data-testid="stMarkdownContainer"] p {
+            color: #ffffff !important;
+        }
 
-        /* Tabs 样式 (黑底白字) */
+        /* 2.4 修复 Tabs 标签颜色 */
         .stTabs { background-color: #000000; }
         .stTabs [data-baseweb="tab-list"] { background-color: #000000; gap: 20px; }
         .stTabs [data-baseweb="tab"] {
             background-color: transparent !important;
-            color: #aaaaaa !important;
             border: none !important;
         }
-        .stTabs [aria-selected="true"] {
+        /* 未选中状态：浅灰 */
+        .stTabs [data-baseweb="tab"] p {
+            color: #aaaaaa !important; 
+        }
+        /* 选中状态：纯白 + 加粗 */
+        .stTabs [aria-selected="true"] p {
             color: #ffffff !important;
             font-weight: bold;
+        }
+        .stTabs [aria-selected="true"] {
             border-bottom: 2px solid #ffffff !important;
         }
 
-        /* 按钮样式 (Main Area) - 幽灵按钮 */
+        /* 2.5 按钮样式 (黑底白框) */
         .main div.stButton > button {
             width: 100%;
             border-radius: 0px !important;
             border: 1px solid #ffffff !important;
             background-color: #000000 !important;
-            color: #ffffff !important;
+            color: #ffffff !important; /* 按钮文字白 */
             font-weight: 600;
             padding: 12px;
             transition: all 0.3s ease;
         }
+        .main div.stButton > button p {
+            color: #ffffff !important; /* 确保按钮内部 p 标签也是白 */
+        }
         .main div.stButton > button:hover {
             background-color: #ffffff !important;
-            color: #000000 !important;
+            border-color: #ffffff !important;
+        }
+        .main div.stButton > button:hover p {
+            color: #000000 !important; /* 悬停时文字变黑 */
         }
         
-        /* 主区域输入框 (如URL输入) - 保持深色底白字 */
+        /* 2.6 主区域输入框 (如URL输入, 密码输入) */
         .main input {
             background-color: #1a1a1a !important;
             border: 1px solid #444444 !important;
             color: #ffffff !important;
         }
         
-        /* 🎨 UI 修复：专门针对“输入密钥”标签 */
-        /* 找到主区域所有的 TextInput Label，并将其设为浅灰色 */
+        /* 2.7 修复“输入密钥”标签颜色 (浅灰色) */
+        /* 使用特定选择器覆盖全局白色设置 */
         .main div[data-testid="stTextInput"] label p {
-            color: #cccccc !important; /* 浅灰色 */
+            color: #cccccc !important; 
             font-size: 14px !important;
         }
         
         /* =========================================
-           3. 左侧边栏 (Sidebar) - 浅灰背景 + 深色文字
+           3. 左侧边栏 (Sidebar) - 浅灰底 + 深色字
            ========================================= */
-        /* 侧边栏标题 (黑色) */
+        /* ⚠️ 必须单独指定 Sidebar，否则会被上面的全局白色覆盖 */
+        
         [data-testid="stSidebar"] h1, 
         [data-testid="stSidebar"] h2, 
         [data-testid="stSidebar"] h3 {
             color: #000000 !important;
         }
         
-        /* 侧边栏普通文本 (深灰色) */
         [data-testid="stSidebar"] p, 
         [data-testid="stSidebar"] .stCaption, 
         [data-testid="stSidebar"] label,
-        [data-testid="stSidebar"] span {
-            color: #666666 !important;
+        [data-testid="stSidebar"] span,
+        [data-testid="stSidebar"] div {
+            color: #000000 !important; /* 侧边栏文字全黑 */
         }
         
-        /* 侧边栏输入框样式 */
+        /* 侧边栏输入框 */
         [data-testid="stSidebar"] input {
             background-color: #ffffff !important;
             border: 1px solid #cccccc !important;
             min-height: 36px;
             color: #000000 !important; 
-            caret-color: #cccccc !important; 
+            caret-color: #cccccc !important; /* 光标浅灰 */
         }
         
         [data-testid="stSidebar"] input:disabled {
@@ -146,6 +166,11 @@ st.markdown("""
         
         [data-testid="stSidebar"] label[data-baseweb="checkbox"] {
             white-space: nowrap; 
+        }
+        
+        /* 修复 Checkbox 内部 div 颜色被全局覆盖的问题 */
+        [data-testid="stSidebar"] [data-baseweb="checkbox"] div {
+             color: #000000 !important;
         }
 
     </style>
@@ -302,22 +327,6 @@ with st.sidebar:
     )
     
     st.markdown("---")
-    st.caption("🛠️ 调试工具")
-    if st.checkbox("显示可用模型列表"):
-        st.write("正在查询 API 支持的模型...")
-        try:
-            # 获取所有模型
-            all_models = genai.list_models()
-            found = False
-            for m in all_models:
-                # 只显示支持 generateContent (生成内容) 的模型
-                if 'generateContent' in m.supported_generation_methods:
-                    st.code(m.name) # 直接复制这里显示的名字
-                    found = True
-            if not found:
-                st.error("未找到支持生成的模型，请检查 API Key 权限。")
-        except Exception as e:
-            st.error(f"查询失败: {e}")
     
     # 鉴权状态判断
     is_unlocked = False
@@ -395,16 +404,12 @@ if not is_unlocked:
     st.divider()
     st.markdown("### 权限验证")
     
-    # 🎨 UI 修复：使用 HTML span 标签强制文字变白
+    # 纯白提示语
     current_mode_text = mode if mode == '漫游艺术领读人' else '图解心灵讨论组'
-    st.markdown(
-        f"""<span style='color: #ffffff; font-size: 1rem;'>您正在尝试访问 **{current_mode_text}**，请输入访问密钥。</span>""", 
-        unsafe_allow_html=True
-    )
+    st.markdown(f"您正在尝试访问 **{current_mode_text}**，请输入访问密钥。")
     
     password_input = st.text_input("输入密钥", type="password", key="pwd_input")
     
-    # 5. 增加空行
     st.markdown("<br>", unsafe_allow_html=True)
     
     unlock_btn = st.button("解锁终端")
