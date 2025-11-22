@@ -15,7 +15,7 @@ MODEL_VERSION = "gemini-3-pro-preview"
 
 # --- 2. 页面初始化 ---
 st.set_page_config(
-    page_title="图解心灵讨论组",
+    page_title="时空漫游指南编辑部",
     page_icon=None,
     layout="centered",
     initial_sidebar_state="expanded"
