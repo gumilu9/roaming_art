@@ -27,7 +27,7 @@ if "auth_diagnostic" not in st.session_state:
 if "auth_reader" not in st.session_state:
     st.session_state.auth_reader = False
 
-# --- 4. CSS 深度视觉定制 (按钮黑字修正版) ---
+# --- 4. CSS 深度视觉定制 (终极白字修正版) ---
 st.markdown("""
     <style>
         /* =========================================
@@ -53,22 +53,26 @@ st.markdown("""
             background-color: #000000 !important;
         }
         
-        /* ☢️ 修复 1：强制标题纯白 ☢️ */
-        h1, h1 span, .stHeadingContainer h1,
-        h2, h2 span, h3, h3 span, h4, h4 span {
+        /* ☢️ 核心修复 1：针对 Streamlit Cloud 的标题强制白字 ☢️ */
+        .main h1, .main h2, .main h3, .main h4, .main h5, .main h6,
+        .main .stHeadingContainer h1,
+        .main .stHeadingContainer h2,
+        .main .stHeadingContainer h3,
+        .main .stHeadingContainer h4,
+        .main span {
             color: #ffffff !important;
             font-family: "HarmonyOS Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif !important;
         }
         
-        /* ☢️ 修复 2：普通文本、生成的报告正文强制纯白 ☢️ */
-        .main p, .main span, .main div, .main li, .main strong, .main em {
+        /* ☢️ 核心修复 2：针对 AI 生成报告正文的强制白字 ☢️ */
+        .main .stMarkdown p, 
+        .main .stMarkdown li, 
+        .main .stMarkdown strong, 
+        .main .stMarkdown em,
+        .main div[data-testid="stMarkdownContainer"] p,
+        .main div[data-testid="stMarkdownContainer"] li {
             color: #ffffff !important;
             font-family: "HarmonyOS Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif !important;
-        }
-        
-        /* 专门针对 AI 生成内容的 Markdown 容器 */
-        .stMarkdown, [data-testid="stMarkdownContainer"] p, [data-testid="stMarkdownContainer"] li {
-            color: #ffffff !important;
         }
 
         /* Tabs 样式 (黑底白字) */
@@ -90,7 +94,6 @@ st.markdown("""
         }
 
         /* ☢️ 核心修复 3：按钮样式 (白底黑字) ☢️ */
-        /* 针对 stButton 下的 button 元素 */
         .stButton > button {
             width: 100%;
             border-radius: 0px !important;
@@ -108,7 +111,6 @@ st.markdown("""
             font-weight: 600 !important;
         }
         
-        /* 悬停效果：背景微灰，文字依然黑 */
         .stButton > button:hover {
             background-color: #f0f0f0 !important;
             border-color: #ffffff !important;
@@ -121,7 +123,6 @@ st.markdown("""
             color: #ffffff !important;
         }
         
-        /* 修复“输入密钥”标签颜色 (浅灰色) */
         .main div[data-testid="stTextInput"] label p {
             color: #cccccc !important; 
             font-size: 14px !important;
@@ -130,8 +131,6 @@ st.markdown("""
         /* =========================================
            3. 左侧边栏 (Sidebar) - 浅灰底 + 深色字
            ========================================= */
-        /* ⚠️ 必须单独指定 Sidebar，否则会被上面的全局白色覆盖 */
-        
         [data-testid="stSidebar"] h1, 
         [data-testid="stSidebar"] h2, 
         [data-testid="stSidebar"] h3,
@@ -147,7 +146,6 @@ st.markdown("""
             color: #000000 !important; 
         }
         
-        /* 侧边栏输入框 */
         [data-testid="stSidebar"] input {
             background-color: #ffffff !important;
             border: 1px solid #cccccc !important;
@@ -165,7 +163,6 @@ st.markdown("""
             white-space: nowrap; 
         }
         
-        /* 修复 Checkbox 内部 div 颜色 */
         [data-testid="stSidebar"] [data-baseweb="checkbox"] div {
              color: #000000 !important;
         }
@@ -216,7 +213,7 @@ PROMPT_DIAGNOSTIC = """
 * **核心任务**：钻进画里，让静止的物体流动起来。挖掘物体背后的隐喻（例如：一盏将熄的灯暗示了什么？一块凌乱的地毯藏着什么秘密？）。
 * **[段落注脚]**：本段主旨：（一句话概括画中物品所承载的叙事功能或象征意义）。
 
-### 第四层：人物与关系
+### 第三层：人物与关系
 * **焦点**：**人物（或拟人化的主体）**。
 * **思维链**：这是最核心的部分。对人物进行“里里外外、上上下下”的打量。
     * *外观*：为什么穿这件衣服？（材质、阶级、时尚史）。为什么头发是乱的？
@@ -295,7 +292,7 @@ Role: 艺术侦探与文化解读者
 
 终极定性：用一句话总结这幅画的“物理存在感”或“精神重量”，言简意赅，掷地有声。
 
-User Input: 艺术作品名称：[输入名称] 艺术家：[输入艺术家] （可选）相关背景事实/图片：[输入图片或信息]
+User Input: 艺术作品名称：{{Title}} 艺术家：{{Artist}} 创作年份：{{Year}}
 """
 
 # --- 6. 辅助函数 ---
@@ -460,6 +457,10 @@ else:
         # 配置 API
         genai.configure(api_key=GOOGLE_API_KEY)
         
+        current_title = artwork_title if artwork_title else "未知作品"
+        current_artist = artist_name if artist_name else "未知艺术家"
+        current_year = artwork_year if artwork_year else "未知年份"
+
         # --- 指令分发 ---
         if mode == "图解心灵讨论组":
             # 诊断间逻辑
@@ -469,11 +470,14 @@ else:
             if unknown_year:
                 dynamic_instructions += "\n⚠️ 创作年份未知，请跳过宏观历史分析，仅推测可能的年代感。"
 
+            # 🛠️ 核心修复：在 User Prompt 中强制注入元数据，防止 AI 忽视输入
             user_prompt_content = f"""
-            【艺术品档案】
-            艺术家: {artist_name}
-            作品名: {artwork_title if artwork_title else "未知"}
-            年份: {artwork_year}
+            [绝对事实/GROUND TRUTH]
+            请务必以以下元数据为准，不要基于视觉相似性猜测其他艺术家。
+            
+            艺术家: {current_artist}
+            作品名: {current_title}
+            年份: {current_year}
             
             {dynamic_instructions}
             
@@ -484,16 +488,21 @@ else:
 
         else:
             # 领读人逻辑
-            current_title = artwork_title if artwork_title else "未知作品"
-            current_artist = artist_name if artist_name else "未知艺术家"
-            current_year = artwork_year if artwork_year else "未知年份"
             
-            # 替换占位符
+            # 1. 替换 System Prompt 中的占位符 (双重保险)
             final_system_prompt = PROMPT_READER.replace("{{Title}}", current_title)
             final_system_prompt = final_system_prompt.replace("{{Artist}}", current_artist)
             final_system_prompt = final_system_prompt.replace("{{Year}}", current_year)
             
-            user_prompt_content = "请开始解读。"
+            # 🛠️ 核心修复：在 User Prompt 中也强制注入元数据，因为 Gemini 更听从 User Prompt
+            user_prompt_content = f"""
+            请针对以下作品开始解读：
+            艺术家：{current_artist}
+            作品名：{current_title}
+            年份：{current_year}
+
+            请严格基于上述信息进行分析，不要质疑或更改艺术家身份。
+            """
 
         # AI 生成与流式输出
         st.divider()
